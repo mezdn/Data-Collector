@@ -2,14 +2,14 @@
 Author: MOHAMMED EZZEDINE
 
 Description: Parsing Html page to extract data table containing the courses of the American University of Beirut (AUB) during a certain semester.
-    Target Page: https://www-banner.aub.edu.lb/pls/weba/bwckschd.p_disp_dyn_sched
+    Target Pages: https://www-banner.aub.edu.lb/pls/weba/bwckschd.p_disp_dyn_sched
+                  https://www-banner.aub.edu.lb/catalog/schd_ + {every capital letter in the alphabet} + .htm
 
 Packages used:
     >   EPPlus.Core
     >   HtmlAgilityPack.NetCore
     >   Selenium.WebDriver
     >   Selenium.WebDriver.ChromeDriver
- 
  */
 
 using HtmlAgilityPack;
@@ -22,6 +22,7 @@ using System.IO;
 using System.Reflection;
 using OfficeOpenXml;
 using System.Diagnostics;
+using OpenQA.Selenium.Interactions;
 
 namespace Selenium
 {
@@ -29,659 +30,78 @@ namespace Selenium
     {
         static void Main(string[] args)
         {
+            ExtractCourses("202010");
+        }
+
+        static void ExtractCourses(string semesterNumber)
+        {
             Stopwatch watch = new Stopwatch();
             watch.Start();
 
             IWebDriver driver = new ChromeDriver(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
 
+            // 1st step: Get the crn, actual enrollment, remaining seats, and linked crns for EVERY course under EVERY letter in the dynmaic schedule in banner
+            string[] alphabets = new string[] { "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z" };
+            List<string[]> dynamicCourseDetails = new List<string[]>();
+
+            for (int v = 0; v < 26; v++)
+            {
+                driver.Navigate().GoToUrl("https://www-banner.aub.edu.lb/catalog/schd_" + alphabets[v] + ".htm");
+
+                var htmlDynam = driver.PageSource;
+
+                var htmlDocDynam = new HtmlDocument();
+                htmlDocDynam.LoadHtml(htmlDynam);
+
+                var dynamicRows = htmlDocDynam.DocumentNode.SelectNodes("//p/table/tbody/tr");
+
+                for (int u = 0; u < dynamicRows.Count; u++)
+                {
+                    var rowDetails = dynamicRows[u].ChildNodes/*.SelectNodes("//td")*/;
+
+                    if (rowDetails.Count == 71 && rowDetails[0].InnerText.ToString().Contains(semesterNumber))
+                        // 2: crn; 18: actuall enrollment; 20: available; 70: linked crns
+                        dynamicCourseDetails.Add(new string[]
+                            {
+                                rowDetails[2].InnerText.ToString(),
+                                rowDetails[18].InnerText.ToString(),
+                                rowDetails[20].InnerText.ToString(),
+                                rowDetails[70].InnerText.ToString()
+                            });
+                }
+            }
+
+            // 2nd step extract the other Courses information of each course from the link below
             driver.Navigate().GoToUrl("https://www-banner.aub.edu.lb/pls/weba/bwckschd.p_disp_dyn_sched");
-            SelectElement semester = new SelectElement(driver.FindElement(By.Name("p_term")));
-            semester.SelectByValue("202010");
-            driver.FindElement(By.TagName("form")).Submit();
+            SelectElement semester;
 
-            #region selecting majors
+            string[] possibilities = new string[] { "ACCT", "AGBU", "AGSC", "AHIS", "AMST", "ARAB", "ARCH", "AROL", "AVSC",  "BIOC", "BIOL", "BIOM", "BMEN", "BUSS",
+                "CHEM", "CHEN", "CHIN", "CIVE", "CMPS", "CMTS", "CVSP", "DCSN", "DGRG", "ECON", "EDUC", "EECE", "ENGL", "ENHL", "ENMG", "ENSC", "ENST", "ENTM", "EPHD",
+                "EXCH", "EXPR", "FEAA", "FINA", "FREN", "FSAF", "FSEC", "GEOL", "GRDS", "HIST", "HMPD", "HPCH", "HUMR", "IDTH", "INDE", "INFO", "INFP", "IPEC",
+                "ISLM", "LABM", "LDEM", "MATH", "MAUD", "MBIM", "MCOM", "MECH", "MEST", "MFIN", "MHRM", "MIMG", "MKTG", "MLSP", "MSCU", "MNGT", "MSBA", "MUSC",
+                "NFSC", "NURS", "ODFO", "ORLG", "PBHL", "PETR", "PHIL", "PHNU", "PHRM", "PHYL", "PHYS", "PPIA", "PSPA", "PSYC", "PSYT", "RCOD", "SART", "SHRP",
+                "SOAN", "STAT", "THTR", "URDS", "URPL"};
+
+            List<List<string>> Courses = new List<List<string>>();
+
+            semester = new SelectElement(driver.FindElement(By.Name("p_term")));
+            semester.SelectByValue(semesterNumber);
+            driver.FindElement(By.TagName("form")).Submit();
             SelectElement majors = new SelectElement(driver.FindElement(By.Id("subj_id")));
-            try
-            {
-                majors.SelectByValue("ACCT");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("AGBU");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("AGSC");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("AHIS");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("AMST");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("ARAB");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("ARCH");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("AROL");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("AVSC");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("BIOC");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("BIOL");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("BIOM");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("BMEN");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("BUSS");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("CHEM");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("CHEN");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("CHIN");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("CIVE");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("CMPS");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("CMTS");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("CVSP");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("DCSN");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("DGRG");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("ECON");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("EDUC");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("EECE");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("ENGL");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("ENHL");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("ENMG");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("ENSC");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("ENST");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("ENTM");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("EPHD");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("EXPR");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("FEAA");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("FINA");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("FREN");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("FSAF");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("FSEC");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("GEOL");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("GRDS");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("HIST");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("HMPD");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("HPCH");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("HUMR");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("IDTH");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("INDE");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("INFO");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("INFP");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("IPEC");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("ISLM");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("LABM");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("LDEM");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MATH");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MAUD");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MBIM");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MCOM");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MECH");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MEST");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MFIN");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MHRM");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MIMG");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MKTG");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MLSP");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MNGT");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MSBA");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MSCU");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("MUSC");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("NFSC");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("NURS");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("ODFO");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("ORLG");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("PBHL");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("PETR");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("PHIL");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("PHNU");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("PHRM");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("PHYL");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("PHYS");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("PPIA");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("PSPA");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("PSYC");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("PSYT");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("RCOD");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("SART");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("SHRP");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("SOAN");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("STAT");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("THTR");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("URDS");
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                majors.SelectByValue("URPL");
-            }
-            catch (Exception)
-            {
-            }
-            #endregion
 
+            // select all the majors
+            for (int u = 0; u < possibilities.Length; u++)
+            {
+                string poss = possibilities[u];
+                try
+                {
+                    majors.SelectByValue(poss);
+                }
+                catch (Exception)
+                {
+                }
+            }
             driver.FindElement(By.TagName("form")).Submit();
-
 
             var html = driver.PageSource;
 
@@ -694,59 +114,106 @@ namespace Selenium
             // getting the whole div that contains the data of each course
             var htmlDataNodes = htmlDoc.DocumentNode.SelectNodes("//table[@class='datadisplaytable']/tbody");
 
-            List<List<string>> Courses = new List<List<string>>();
-            Courses.Add(new List<string> { "Title", "CRN", "Name", "Section", "Term", "Credits", "Time 1", "Days 1", "Place 1", "Schedule Type 1", "Instructors 1",
-            "Time 2", "Days 2", "Place 2", "Schedule Type 2", "Instructors 2", "Time 3", "Days 3", "Place 3", "Schedule Type 3", "Instructors 3"});
+            Courses.Add(new List<string> { "Title", "CRN", "Name", "Section", "Term", "Credits", "Actuall Enrollment", "Remaining Seats", "Linked Crns",
+                "Time 1", "Days 1", "Place 1", "Schedule Type 1", "Instructors 1", "Time 2", "Days 2", "Place 2", "Schedule Type 2", "Instructors 2",
+                "Time 3", "Days 3", "Place 3", "Schedule Type 3", "Instructors 3", "Time 4", "Days 4", "Place 4", "Schedule Type 4", "Instructors 4",
+                "Time 5", "Days 5", "Place 5", "Schedule Type 5", "Instructors 5", "Time 6", "Days 6", "Place 6", "Schedule Type 6", "Instructors 6",
+                "Time 7", "Days 7", "Place 7", "Schedule Type 7", "Instructors 7", "Time 8", "Days 8", "Place 8", "Schedule Type 8", "Instructors 8",
+                "Time 9", "Days 9", "Place 9", "Schedule Type 9", "Instructors 9"});
 
 
-            //var dataNodes = htmlDataNodes[0].InnerHtml.Split("</tbody></table>");
-            var dataNodes = htmlDataNodes[0].InnerText.Split("\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n");
-           
-            for (int i = 0; i < dataNodes.Length; i++)
+            if (htmlDataNodes != null)
             {
-                var item = dataNodes[i].Replace("Type","").Replace("Time","").Replace("Days","").Replace("Where","").Replace("Date Range","").Replace("Schedule Type","")
-                    .Replace("Intructors","").Replace("Scheduled Meeting Times","").Replace("View Catalog Entry","").Replace("Main Campus Campus","").Replace("Course Syllabus", "");
-                var itemLines = item.Split("\r\n");
+                var dataNodes = htmlDataNodes[0].InnerText.Split("\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n");
 
-                List<string> courseData = new List<string>();
-                int start;
-                if (itemLines[0] != "")
+                for (int i = 0; i < dataNodes.Length; i++)
                 {
-                    courseData.AddRange(itemLines[0].Split(" - "));
-                    start = 1;
-                }
-                else
-                {
-                    courseData.AddRange(itemLines[1].Split(" - "));
-                    start = 2;
-                }
+                    var item = dataNodes[i].Replace("Type", "").Replace("Time", "").Replace("Days", "").Replace("Where", "").Replace("Date Range", "").Replace("Schedule Type", "")
+                        .Replace("Intructors", "").Replace("Scheduled Meeting Times", "").Replace("View Catalog Entry", "").Replace("Main Campus Campus", "").Replace("Course Syllabus", "");
+                    var itemLines = item.Split("\r\n");
 
-                for (int k = start; k < itemLines.Length - 6; k++)
-                {
-                    if (itemLines[k].Contains("Associated Term:"))
-                        courseData.Add(itemLines[k].Replace("Associated Term: ", ""));
-                    else if (itemLines[k].Contains("Credits"))
-                        courseData.Add(itemLines[k].Replace("Credtis", ""));
-                    else if (itemLines[k] == "Class" || itemLines[k].Contains("Class"))
+                    List<string> courseData = new List<string>();
+                    int start;
+                    if (itemLines[0].Split(" - ").Length >= 2 && (itemLines[0].Split(" - ")[1] == "13124"))
+                        Console.WriteLine("s");
+                    if (itemLines[0] != "")
                     {
-                        try
-                        {
-                            courseData.Add(itemLines[k + 1]);
-                            courseData.Add(itemLines[k + 2]);
-                            courseData.Add(itemLines[k + 3]);
-                            courseData.Add(itemLines[k + 5]);
-                            courseData.Add(itemLines[k + 6].Replace("(P)", ""));
-                        }
-                        catch (Exception)
-                        {
-                            Console.WriteLine(itemLines[0]);
-                        }
-                        
+                        courseData.AddRange(itemLines[0].Split(" - "));
+                        start = 1;
                     }
-                }
-                Courses.Add(courseData);
+                    else
+                    {
+                        courseData.AddRange(itemLines[1].Split(" - "));
+                        start = 2;
+                    }
 
+                    for (int k = start; k < itemLines.Length; k++)
+                    {
+                        if (itemLines[k].Contains("Associated Term:"))
+                            courseData.Add(itemLines[k].Replace("Associated Term: ", ""));
+                        else if (itemLines[k].Contains("Credits"))
+                        {
+                            courseData.Add(itemLines[k].Replace("Credits", ""));
+                            if (dynamicCourseDetails[k][0].ToString().Equals(courseData[1].ToString()))
+                            {
+                                courseData.Add(dynamicCourseDetails[k][1] != "" ? dynamicCourseDetails[k][1] : ""); // Actual Enrollment
+                                courseData.Add(dynamicCourseDetails[k][2] != "" ? dynamicCourseDetails[k][2] : ""); // Remaining Seats
+                                courseData.Add(dynamicCourseDetails[k][3] != "" ? dynamicCourseDetails[k][3] : ""); // Linked crns
+                            }
+                            else
+                            {
+                                bool Found = false;
+                                for (int w = 0; w < dynamicCourseDetails.Count; w++)
+                                {
+                                    if (dynamicCourseDetails[w][0].ToString().Equals(courseData[1].ToString()))
+                                    {
+                                        Found = true;
+                                        courseData.Add(dynamicCourseDetails[w][1] != "" ? dynamicCourseDetails[k][1] : ""); // Actual Enrollment
+                                        courseData.Add(dynamicCourseDetails[w][2] != "" ? dynamicCourseDetails[k][2] : ""); // Remaining Seats
+                                        courseData.Add(dynamicCourseDetails[w][3] != "" ? dynamicCourseDetails[k][3] : ""); // Linked crns
+                                        break;
+                                    }
+                                }
+                                if (!Found)
+                                {
+                                    courseData.Add("");
+                                    courseData.Add("");
+                                    courseData.Add("");
+                                }
+                            }
+                        }
+                        else if ((itemLines[k] == "Class" || itemLines[k].Contains("Class")))
+                        {
+                            if (k + 6 < itemLines.Length)
+                            {
+                                try
+                                {
+                                    courseData.Add(itemLines[k + 1]);
+                                    courseData.Add(itemLines[k + 2]);
+                                    courseData.Add(itemLines[k + 3]);
+                                    courseData.Add(itemLines[k + 5]);
+                                    courseData.Add(itemLines[k + 6].Replace("(P)", ""));
+                                }
+                                catch (Exception)
+                                {
+                                    Console.WriteLine(itemLines[0]);
+                                }
+                            }
+                        }
+                    }
+                    if (itemLines.Length <= 20)
+                    {
+                        courseData.Add("");
+                        courseData.Add("");
+                        courseData.Add("");
+                        courseData.Add("");
+                        courseData.Add("");
+                        courseData.Add("");
+                    }
+                    Courses.Add(courseData);
+                }
             }
+            //driver.Navigate().Back();
 
             for (int i = 0; i < Courses.Count; i++)
             {
@@ -761,6 +228,7 @@ namespace Selenium
             watch.Stop();
             Console.WriteLine(watch.Elapsed); // Approx. Execution Time: 00:00:57.4817500
         }
+
         static string path = @"C:\Users\student\Desktop\test1.xlsx";
         static FileInfo file = new FileInfo(path);
         static ExcelPackage package = new ExcelPackage(file);
@@ -768,7 +236,7 @@ namespace Selenium
         public static void WriteToCell(int i, int j, string s)
         {
             ExcelWorksheet worksheet = package.Workbook.Worksheets["sheet1"];
-            worksheet.Cells[i + 1, j + 1].Value = s;
+            worksheet.Cells[i + 1, j + 2].Value = s;
         }
 
         public static void Save()
